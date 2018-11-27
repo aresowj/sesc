@@ -1,0 +1,12 @@
+--- eglibc-2.12/elf/cache.c.org	2010-11-21 14:07:18.000000000 -0500
++++ eglibc-2.12/elf/cache.c	2010-11-21 14:07:27.000000000 -0500
+@@ -622,7 +622,8 @@
+ 	&& id->ctime == entry->id.ctime
+ 	&& id->size == entry->id.size
+ 	&& id->dev == entry->id.dev)
+-      abort ();
++		return;
++      //abort ();
+ 
+   size_t len = soname ? strlen (soname) + 1 : 0;
+   entry = xmalloc (sizeof (struct aux_cache_entry) + len);
