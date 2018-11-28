@@ -338,7 +338,7 @@ bool FullMSHR<Addr_t, Cache_t>::issue(Addr_t paddr, MemOperation mo)
     nFreeEntries--;
     I(nFreeEntries>=0);
 
-    int32_t pos = calcEntry(paddr);
+    int32_t pos = this->calcEntry(paddr);
     if (entry[pos].inUse)
         return false;
 
@@ -371,7 +371,7 @@ void FullMSHR<Addr_t, Cache_t>::addEntry(Addr_t paddr, CallbackBase *c, Callback
 
     nStallConflict.inc();
 
-    int32_t pos = calcEntry(paddr);
+    int32_t pos = this->calcEntry(paddr);
 
     I(entry[pos].inUse);
 
@@ -389,7 +389,7 @@ bool FullMSHR<Addr_t, Cache_t>::retire(Addr_t paddr)
         overflow.pop_front();
         overflowing = !overflow.empty();
 
-        int32_t opos = calcEntry(f.paddr);
+        int32_t opos = this->calcEntry(f.paddr);
         if (entry[opos].inUse) {
             entry[opos].cc.add(f.cb);
             // we did not need the overflow callback here, since there was a
@@ -411,7 +411,7 @@ bool FullMSHR<Addr_t, Cache_t>::retire(Addr_t paddr)
     I(nFreeEntries>=0);
     I(nFreeEntries <= nEntries);
 
-    int32_t pos = calcEntry(paddr);
+    int32_t pos = this->calcEntry(paddr);
 
     I(entry[pos].inUse);
 
@@ -467,7 +467,7 @@ SingleMSHR<Addr_t, Cache_t>::SingleMSHR(const char *name, int32_t size,
 template<class Addr_t, class Cache_t>
 bool SingleMSHR<Addr_t, Cache_t>::issue(Addr_t paddr, MemOperation mo)
 {
-    MSHRit it = ms.find(calcLineAddr(paddr));
+    MSHRit it = ms.find(this->calcLineAddr(paddr));
 
     nUse.inc();
     if(mo == MemRead)
@@ -484,9 +484,9 @@ bool SingleMSHR<Addr_t, Cache_t>::issue(Addr_t paddr, MemOperation mo)
 
     if(it == ms.end()) {
         if(nFreeEntries > 0) {
-            ms[calcLineAddr(paddr)].firstRequest(paddr, calcLineAddr(paddr),
+            ms[this->calcLineAddr(paddr)].firstRequest(paddr, this->calcLineAddr(paddr),
                                                  nReads, nWrites, mo);
-            bf.insert(calcLineAddr(paddr));
+            bf.insert(this->calcLineAddr(paddr));
             nFreeEntries--;
 
 #ifdef MSHR_BASICOCCSTATS
@@ -506,7 +506,7 @@ bool SingleMSHR<Addr_t, Cache_t>::issue(Addr_t paddr, MemOperation mo)
             checkSubEntries(paddr, mo);
 
 #ifdef MSHR_EXTRAOCCSTATS
-            occStats->sampleEntry( calcLineAddr(paddr) );
+            occStats->sampleEntry( this->calcLineAddr(paddr) );
 #endif
             return true;
         }
@@ -532,7 +532,7 @@ void SingleMSHR<Addr_t, Cache_t>::toOverflow(Addr_t paddr, CallbackBase *c,
 template<class Addr_t, class Cache_t>
 void SingleMSHR<Addr_t, Cache_t>::checkSubEntries(Addr_t paddr, MemOperation mo)
 {
-    MSHRit it = ms.find(calcLineAddr(paddr));
+    MSHRit it = ms.find(this->calcLineAddr(paddr));
     I(it != ms.end());
 
     if((*it).second.isRdWrSharing()) {
@@ -568,17 +568,17 @@ void SingleMSHR<Addr_t, Cache_t>::checkOverflow()
 
     do {
         OverflowField f = overflow.front();
-        MSHRit it = ms.find(calcLineAddr(f.paddr));
+        MSHRit it = ms.find(this->calcLineAddr(f.paddr));
 
         if(it == ms.end()) {
             if(nFreeEntries > 0) {
-                ms[calcLineAddr(f.paddr)].firstRequest(f.paddr, calcLineAddr(f.paddr),
+                ms[this->calcLineAddr(f.paddr)].firstRequest(f.paddr, this->calcLineAddr(f.paddr),
                                                        nReads, nWrites, f.mo);
                 checkSubEntries(f.paddr, f.mo);
 #ifdef MSHR_EXTRAOCCSTATS
-                occStats->sampleEntry( calcLineAddr( f.paddr ) );
+                occStats->sampleEntry( this->calcLineAddr( f.paddr ) );
 #endif
-                bf.insert(calcLineAddr(f.paddr));
+                bf.insert(this->calcLineAddr(f.paddr));
                 nFreeEntries--;
 
 #ifdef MSHR_BASICOCCSTATS
@@ -633,7 +633,7 @@ template<class Addr_t, class Cache_t>
 void SingleMSHR<Addr_t, Cache_t>::addEntry(Addr_t paddr, CallbackBase *c,
         CallbackBase *ovflwc, MemOperation mo)
 {
-    MSHRit it = ms.find(calcLineAddr(paddr));
+    MSHRit it = ms.find(this->calcLineAddr(paddr));
     I(ovflwc); // for single MSHR, overflow handler REQUIRED!
 
     if(!overflow.empty()) {
@@ -678,9 +678,9 @@ bool SingleMSHR<Addr_t, Cache_t>::retire(Addr_t paddr)
 {
     bool rmEntry = false;
 
-    MSHRit it = ms.find(calcLineAddr(paddr));
+    MSHRit it = ms.find(this->calcLineAddr(paddr));
     I(it != ms.end());
-    I(calcLineAddr(paddr) == (*it).second.getLineAddr());
+    I(this->calcLineAddr(paddr) == (*it).second.getLineAddr());
 
     maxOutsReqs.sample(nOutsReqs);
     nOutsReqs--;
@@ -792,7 +792,7 @@ bool SingleMSHR<Addr_t, Cache_t>::canAcceptRequestSpecial(Addr_t paddr, MemOpera
         return false;
     }
 
-    const_MSHRit it = ms.find(calcLineAddr(paddr));
+    const_MSHRit it = ms.find(this->calcLineAddr(paddr));
     I(nFreeEntries >= 0 && nFreeEntries <= nEntries);
 
     if(it == ms.end()) {
@@ -824,7 +824,7 @@ bool SingleMSHR<Addr_t, Cache_t>::canAcceptRequestSpecial(Addr_t paddr, MemOpera
 template<class Addr_t, class Cache_t>
 bool SingleMSHR<Addr_t, Cache_t>::isOnlyWrites(Addr_t paddr)
 {
-    const_MSHRit it = ms.find(calcLineAddr(paddr));
+    const_MSHRit it = ms.find(this->calcLineAddr(paddr));
     I(it != ms.end());
 
     return ((*it).second.getUsedReads() == 0);
@@ -896,7 +896,7 @@ template<class Addr_t, class Cache_t>
 MSHRentry<Addr_t>* SingleMSHR<Addr_t, Cache_t>::getEntry(Addr_t paddr)
 {
     MSHRentry<Addr_t> *me = NULL;
-    MSHRit dispIt = ms.find(calcLineAddr(paddr));
+    MSHRit dispIt = ms.find(this->calcLineAddr(paddr));
 
     if(dispIt!=ms.end())
         me = &((*dispIt).second);
@@ -1008,7 +1008,7 @@ bool BankedMSHR<Addr_t, Cache_t>::canAcceptRequestSpecial(Addr_t paddr,
         return false;
     }
 
-    bool canAccept = mshrBank[calcBankIndex(paddr)]->canAcceptRequest(paddr,mo);
+    bool canAccept = mshrBank[this->calcBankIndex(paddr)]->canAcceptRequest(paddr,mo);
 
     if(canAccept)
         nCanAccept.inc();
@@ -1032,7 +1032,7 @@ bool BankedMSHR<Addr_t, Cache_t>::issue(Addr_t paddr, MemOperation mo)
     if(!overflow.empty())
         return false;
 
-    bool issued = mshrBank[calcBankIndex(paddr)]->issue(paddr, mo);
+    bool issued = mshrBank[this->calcBankIndex(paddr)]->issue(paddr, mo);
 
     if(issued) {
         nOutsReqs++;
@@ -1050,10 +1050,10 @@ void BankedMSHR<Addr_t, Cache_t>::addEntry(Addr_t paddr, CallbackBase *c,
         return;
     }
 
-    if(mshrBank[calcBankIndex(paddr)]->canAcceptRequest(paddr, mo)) {
+    if(mshrBank[this->calcBankIndex(paddr)]->canAcceptRequest(paddr, mo)) {
         nOutsReqs++;
-        mshrBank[calcBankIndex(paddr)]->addEntry(paddr, c, ovflwc, mo);
-        I(!mshrBank[calcBankIndex(paddr)]->isOverflowing());
+        mshrBank[this->calcBankIndex(paddr)]->addEntry(paddr, c, ovflwc, mo);
+        I(!mshrBank[this->calcBankIndex(paddr)]->isOverflowing());
         return;
     }
 
@@ -1065,7 +1065,7 @@ bool BankedMSHR<Addr_t, Cache_t>::retire(Addr_t paddr)
 {
     bool rmEntry;
     maxOutsReqs.sample(nOutsReqs);
-    rmEntry = mshrBank[calcBankIndex(paddr)]->retire(paddr);
+    rmEntry = mshrBank[this->calcBankIndex(paddr)]->retire(paddr);
     nOutsReqs--;
     checkOverflow();
     return rmEntry;
@@ -1103,7 +1103,7 @@ void BankedMSHR<Addr_t, Cache_t>::checkOverflow()
 
     do {
         OverflowField f = overflow.front();
-        SingleMSHR<Addr_t, Cache_t> *mb = mshrBank[calcBankIndex(f.paddr)];
+        SingleMSHR<Addr_t, Cache_t> *mb = mshrBank[this->calcBankIndex(f.paddr)];
 
         if(!mb->canAcceptRequest(f.paddr, f.mo))
             break;
@@ -1141,7 +1141,7 @@ void BankedMSHR<Addr_t, Cache_t>::setLowerCache(Cache_t *lCache)
 template<class Addr_t, class Cache_t>
 bool BankedMSHR<Addr_t, Cache_t>::hasLineReq(Addr_t paddr)
 {
-    return mshrBank[calcBankIndex(paddr<<Log2LineSize)]->hasLineReq(paddr);
+    return mshrBank[this->calcBankIndex(paddr<<Log2LineSize)]->hasLineReq(paddr);
 }
 
 template<class Addr_t, class Cache_t>
@@ -1149,7 +1149,7 @@ MSHRentry<Addr_t>* BankedMSHR<Addr_t, Cache_t>::selectEntryToDrop(Addr_t paddr)
 {
     MSHRentry<Addr_t> *me;
 
-    me = mshrBank[calcBankIndex(paddr)]->selectEntryToDrop(paddr);
+    me = mshrBank[this->calcBankIndex(paddr)]->selectEntryToDrop(paddr);
 
     return me;
 }
@@ -1158,14 +1158,14 @@ template<class Addr_t, class Cache_t>
 void BankedMSHR<Addr_t, Cache_t>::dropEntry(Addr_t lineAddr)
 {
     I(mshrBank);
-    I(mshrBank[calcBankIndex(lineAddr<<Log2LineSize)]);
-    mshrBank[calcBankIndex(lineAddr<<Log2LineSize)]->dropEntry(lineAddr);
+    I(mshrBank[this->calcBankIndex(lineAddr<<Log2LineSize)]);
+    mshrBank[this->calcBankIndex(lineAddr<<Log2LineSize)]->dropEntry(lineAddr);
 }
 
 template<class Addr_t, class Cache_t>
 MSHRentry<Addr_t>* BankedMSHR<Addr_t, Cache_t>::getEntry(Addr_t paddr)
 {
-    return mshrBank[calcBankIndex(paddr)]->getEntry(paddr);
+    return mshrBank[this->calcBankIndex(paddr)]->getEntry(paddr);
 }
 
 
@@ -1173,8 +1173,8 @@ template<class Addr_t, class Cache_t>
 void BankedMSHR<Addr_t, Cache_t>::putEntry(MSHRentry<Addr_t> &me)
 {
     I(mshrBank);
-    I(mshrBank[calcBankIndex(me.getLineAddr()<<Log2LineSize)]);
-    mshrBank[calcBankIndex(me.getLineAddr()<<Log2LineSize)]->putEntry(me);
+    I(mshrBank[this->calcBankIndex(me.getLineAddr()<<Log2LineSize)]);
+    mshrBank[this->calcBankIndex(me.getLineAddr()<<Log2LineSize)]->putEntry(me);
 }
 
 template<class Addr_t, class Cache_t>
